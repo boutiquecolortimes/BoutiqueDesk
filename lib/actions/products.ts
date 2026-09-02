@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Product, PRODUCT_STATUSES } from "@/models/Product";
+import { Store } from "@/models/Store";
 import { requireAdminSession } from "@/lib/auth/session";
 import { isOwnerRole } from "@/lib/auth/roles";
 import { slugify } from "@/lib/utils";
@@ -54,6 +55,13 @@ async function assertStoreAccess(storeId: string) {
   if (!isOwnerRole(session.role) && !session.storeIds.includes(storeId)) {
     throw new Error("You don't have access to that store.");
   }
+  // Tenant boundary: the store must belong to the caller's own organization,
+  // regardless of role — an owner is only unrestricted *within* their org.
+  await connectToDatabase();
+  const store = await Store.findOne({ _id: storeId, organization: session.orgId }).select("_id");
+  if (!store) {
+    throw new Error("You don't have access to that store.");
+  }
   return session;
 }
 
@@ -65,8 +73,9 @@ export async function createProduct(
   if ("error" in parsed) return { error: parsed.error };
   const { data, sizes, images } = parsed;
 
+  let session;
   try {
-    await assertStoreAccess(data.storeId);
+    session = await assertStoreAccess(data.storeId);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Unauthorized." };
   }
@@ -80,6 +89,7 @@ export async function createProduct(
   }
 
   await Product.create({
+    organization: session.orgId!,
     store: data.storeId,
     category: data.categoryId || undefined,
     name: data.name,
@@ -109,14 +119,15 @@ export async function updateProduct(
   if ("error" in parsed) return { error: parsed.error };
   const { data, sizes, images } = parsed;
 
+  let session;
   try {
-    await assertStoreAccess(data.storeId);
+    session = await assertStoreAccess(data.storeId);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Unauthorized." };
   }
 
   await connectToDatabase();
-  const existing = await Product.findById(productId);
+  const existing = await Product.findOne({ _id: productId, organization: session.orgId });
   if (!existing) return { error: "Product not found." };
 
   // Preserve rentedQuantity per size where the size still exists.
@@ -147,7 +158,7 @@ export async function updateProduct(
 export async function archiveProduct(productId: string) {
   const session = await requireAdminSession();
   await connectToDatabase();
-  const product = await Product.findById(productId);
+  const product = await Product.findOne({ _id: productId, organization: session.orgId });
   if (!product) throw new Error("Product not found.");
   if (!isOwnerRole(session.role) && !session.storeIds.includes(String(product.store))) {
     throw new Error("You don't have access to that store.");

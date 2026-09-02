@@ -4,6 +4,7 @@ import { Product } from "@/models/Product";
 import { Category } from "@/models/Category";
 import { User } from "@/models/User";
 import { getSession } from "@/lib/auth/session";
+import { getCurrentOrg } from "@/lib/tenant";
 import { cn } from "@/lib/utils";
 import { ProductCard, type StorefrontProduct } from "@/components/storefront/product-card";
 import { DatabaseNotice } from "@/components/admin/database-notice";
@@ -24,12 +25,17 @@ export default async function CollectionsPage({
 
   try {
     await connectToDatabase();
-    const query: Record<string, unknown> = { status: "active", isPubliclyVisible: true };
+    const org = await getCurrentOrg();
+    const query: Record<string, unknown> = {
+      organization: org?._id ?? null,
+      status: "active",
+      isPubliclyVisible: true,
+    };
     if (category) query.category = category;
 
     const [productDocs, categoryDocs, user] = await Promise.all([
-      Product.find(query).populate("store", "name").sort({ createdAt: -1 }).limit(60),
-      Category.find({ isActive: true }).sort({ name: 1 }),
+      org ? Product.find(query).populate("store", "name").sort({ createdAt: -1 }).limit(60) : [],
+      org ? Category.find({ organization: org._id, isActive: true }).sort({ name: 1 }) : [],
       session ? User.findById(session.sub).select("wishlist") : null,
     ]);
 

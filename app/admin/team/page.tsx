@@ -19,15 +19,15 @@ import { DatabaseNotice } from "@/components/admin/database-notice";
 export const metadata = { title: "Team" };
 
 export default async function TeamPage() {
-  await requireOwnerSession();
+  const session = await requireOwnerSession();
 
   let members: Awaited<ReturnType<typeof User.find>> = [];
   let stores: { id: string; name: string }[] = [];
   try {
     await connectToDatabase();
     const [memberDocs, storeDocs] = await Promise.all([
-      User.find({ role: { $in: ["admin", "staff"] } }).sort({ createdAt: -1 }),
-      Store.find({ isActive: true }).sort({ name: 1 }),
+      User.find({ organization: session.orgId, role: { $in: ["admin", "staff"] } }).sort({ createdAt: -1 }),
+      Store.find({ organization: session.orgId, isActive: true }).sort({ name: 1 }),
     ]);
     members = memberDocs;
     stores = storeDocs.map((s) => ({ id: String(s._id), name: s.name }));

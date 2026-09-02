@@ -18,12 +18,12 @@ import { DatabaseNotice } from "@/components/admin/database-notice";
 export const metadata = { title: "Stores" };
 
 export default async function StoresPage() {
-  await requireOwnerSession();
+  const session = await requireOwnerSession();
 
   let stores: Awaited<ReturnType<typeof Store.find>> = [];
   try {
     await connectToDatabase();
-    stores = await Store.find({}).sort({ createdAt: -1 });
+    stores = await Store.find({ organization: session.orgId }).sort({ createdAt: -1 });
   } catch (err) {
     return <DatabaseNotice message={err instanceof Error ? err.message : "Connection failed."} />;
   }

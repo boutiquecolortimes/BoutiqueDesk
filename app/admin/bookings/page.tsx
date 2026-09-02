@@ -37,7 +37,9 @@ export default async function BookingsPage() {
   try {
     await connectToDatabase();
     const scope = storeScopeFilter(session);
-    const storeQuery = isOwnerRole(session.role) ? {} : { _id: { $in: session.storeIds } };
+    const storeQuery = isOwnerRole(session.role)
+      ? { organization: session.orgId }
+      : { _id: { $in: session.storeIds }, organization: session.orgId };
 
     const [bookingDocs, storeDocs, productDocs] = await Promise.all([
       Booking.find(scope).sort({ createdAt: -1 }).limit(100).populate("store", "name"),

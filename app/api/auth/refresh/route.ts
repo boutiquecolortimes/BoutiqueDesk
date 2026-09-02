@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     email: user.email,
     name: user.name,
     storeIds,
+    orgId: user.organization ? String(user.organization) : null,
   });
 
   const response = NextResponse.json({

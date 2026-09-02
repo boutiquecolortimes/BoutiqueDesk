@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed:super-admin": "tsx --env-file=.env.local scripts/seed-super-admin.ts",
+    "migrate:add-tenant": "tsx --env-file=.env.local scripts/migrate-add-tenant.ts",
     "seed:catalog": "tsx --env-file=.env.local scripts/seed-catalog.ts",
     "seed:whatsapp": "tsx --env-file=.env.local scripts/seed-whatsapp-templates.ts",
     "seed:demo-data": "tsx --env-file=.env.local scripts/seed-demo-data.ts",

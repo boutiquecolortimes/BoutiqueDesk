@@ -1,7 +1,12 @@
 /**
- * Creates (or updates) the first super_admin account so there's a way to log
- * into /admin. Run with: npm run seed:super-admin
- * Requires SUPER_ADMIN_NAME / SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD in .env.local.
+ * Creates (or updates) BoutiqueDesk's own platform_admin account — not tied
+ * to any tenant, used to sign into /platform on the apex/marketing domain
+ * to manage the directory of signed-up boutiques. Run with:
+ *   npm run seed:super-admin
+ * Requires SUPER_ADMIN_NAME / SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD in
+ * .env.local. (For a tenant's first super_admin, use the /get-started
+ * signup flow instead, or scripts/migrate-add-tenant.ts for the original
+ * pre-SaaS business.)
  */
 import mongoose from "mongoose";
 import { User } from "../models/User";
@@ -24,13 +29,14 @@ async function main() {
   const email = SUPER_ADMIN_EMAIL.toLowerCase();
 
   const user = await User.findOneAndUpdate(
-    { email },
+    { email, organization: null },
     {
       $set: {
         name: SUPER_ADMIN_NAME,
         email,
         passwordHash,
-        role: "super_admin",
+        role: "platform_admin",
+        organization: null,
         isActive: true,
       },
       $setOnInsert: { storeIds: [] },
@@ -38,7 +44,7 @@ async function main() {
     { upsert: true, new: true }
   );
 
-  console.log(`Super admin ready: ${user.email} (id: ${user._id})`);
+  console.log(`Platform admin ready: ${user.email} (id: ${user._id}) — sign in at the apex domain's /login.`);
   await mongoose.disconnect();
 }
 

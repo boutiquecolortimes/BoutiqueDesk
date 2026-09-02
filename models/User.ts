@@ -16,8 +16,10 @@ const AddressSchema = new Schema(
 
 const UserSchema = new Schema(
   {
+    // Null only for platform_admin (BoutiqueDesk's own team, not tied to a tenant).
+    organization: { type: Schema.Types.ObjectId, ref: "Organization", default: null, index: true },
     name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
     phone: { type: String, default: "" },
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ROLES, required: true, default: "customer" },
@@ -31,6 +33,8 @@ const UserSchema = new Schema(
   },
   { timestamps: true }
 );
+
+UserSchema.index({ organization: 1, email: 1 }, { unique: true });
 
 export type UserDocument = InferSchemaType<typeof UserSchema> & { _id: Types.ObjectId };
 

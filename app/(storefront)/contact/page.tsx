@@ -1,6 +1,7 @@
 import { Phone, Mail, MapPin } from "lucide-react";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Store } from "@/models/Store";
+import { getCurrentOrg } from "@/lib/tenant";
 import { ContactForm } from "@/components/storefront/contact-form";
 
 export const metadata = { title: "Contact" };
@@ -9,7 +10,10 @@ export default async function ContactPage() {
   let stores: Awaited<ReturnType<typeof Store.find>> = [];
   try {
     await connectToDatabase();
-    stores = await Store.find({ isActive: true }).sort({ name: 1 });
+    const org = await getCurrentOrg();
+    if (org) {
+      stores = await Store.find({ organization: org._id, isActive: true }).sort({ name: 1 });
+    }
   } catch {
     // degrade gracefully
   }

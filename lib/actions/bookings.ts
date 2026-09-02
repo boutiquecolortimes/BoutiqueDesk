@@ -37,6 +37,13 @@ async function assertStoreAccess(storeId: string) {
   if (!isOwnerRole(session.role) && !session.storeIds.includes(storeId)) {
     throw new Error("You don't have access to that store.");
   }
+  // Tenant boundary: the store must belong to the caller's own organization,
+  // regardless of role — an owner is only unrestricted *within* their org.
+  await connectToDatabase();
+  const store = await Store.findOne({ _id: storeId, organization: session.orgId }).select("_id");
+  if (!store) {
+    throw new Error("You don't have access to that store.");
+  }
   return session;
 }
 
@@ -143,6 +150,7 @@ export async function createBooking(
 
   await Booking.create({
     bookingNumber,
+    organization: session.orgId!,
     store: storeId,
     customer: {
       name: parsed.data.customerName,
@@ -176,7 +184,7 @@ export async function setBookingStatus(bookingId: string, status: string) {
 
   const session = await requireAdminSession();
   await connectToDatabase();
-  const booking = await Booking.findById(bookingId);
+  const booking = await Booking.findOne({ _id: bookingId, organization: session.orgId });
   if (!booking) throw new Error("Booking not found.");
   if (!isOwnerRole(session.role) && !session.storeIds.includes(String(booking.store))) {
     throw new Error("You don't have access to that store.");
@@ -226,7 +234,7 @@ export async function recordBookingPayment(
 
   const session = await requireAdminSession();
   await connectToDatabase();
-  const booking = await Booking.findById(bookingId);
+  const booking = await Booking.findOne({ _id: bookingId, organization: session.orgId });
   if (!booking) return { error: "Booking not found." };
   if (!isOwnerRole(session.role) && !session.storeIds.includes(String(booking.store))) {
     return { error: "You don't have access to that store." };
@@ -238,6 +246,7 @@ export async function recordBookingPayment(
       : Math.abs(parsed.data.amount);
 
   await Transaction.create({
+    organization: session.orgId!,
     store: booking.store,
     booking: booking._id,
     type: parsed.data.type,

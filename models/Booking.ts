@@ -16,6 +16,7 @@ const BookingItemSchema = new Schema(
 const BookingSchema = new Schema(
   {
     bookingNumber: { type: String, required: true, unique: true },
+    organization: { type: Schema.Types.ObjectId, ref: "Organization", required: true, index: true },
     store: { type: Schema.Types.ObjectId, ref: "Store", required: true, index: true },
     customer: {
       user: { type: Schema.Types.ObjectId, ref: "User" },

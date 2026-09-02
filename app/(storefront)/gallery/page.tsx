@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Product } from "@/models/Product";
+import { getCurrentOrg } from "@/lib/tenant";
 
 export const metadata = { title: "Gallery" };
 
@@ -8,10 +9,17 @@ export default async function GalleryPage() {
   let images: { src: string; alt: string }[] = [];
   try {
     await connectToDatabase();
-    const products = await Product.find({ isPubliclyVisible: true, "images.0": { $exists: true } })
-      .select("name images")
-      .limit(24)
-      .sort({ createdAt: -1 });
+    const org = await getCurrentOrg();
+    const products = org
+      ? await Product.find({
+          organization: org._id,
+          isPubliclyVisible: true,
+          "images.0": { $exists: true },
+        })
+          .select("name images")
+          .limit(24)
+          .sort({ createdAt: -1 })
+      : [];
     images = products.flatMap((p) => p.images.slice(0, 1).map((src) => ({ src, alt: p.name })));
   } catch {
     // degrade gracefully

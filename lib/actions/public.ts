@@ -10,6 +10,7 @@ import { Store } from "@/models/Store";
 import { hashPassword } from "@/lib/auth/password";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/tokens";
 import { getSession } from "@/lib/auth/session";
+import { getCurrentOrg } from "@/lib/tenant";
 import { daysBetween } from "@/lib/utils";
 import {
   ACCESS_TOKEN_COOKIE,
@@ -40,13 +41,19 @@ export async function registerCustomer(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
+  const org = await getCurrentOrg();
+  if (!org) {
+    return { error: "This boutique isn't available right now." };
+  }
+
   await connectToDatabase();
   const email = parsed.data.email.toLowerCase();
-  if (await User.exists({ email })) {
+  if (await User.exists({ email, organization: org._id })) {
     return { error: "An account with this email already exists." };
   }
 
   const user = await User.create({
+    organization: org._id,
     name: parsed.data.name,
     email,
     phone: parsed.data.phone,
@@ -60,6 +67,7 @@ export async function registerCustomer(
     email: user.email,
     name: user.name,
     storeIds: [],
+    orgId: String(org._id),
   });
   const refreshToken = await signRefreshToken({ sub: user._id.toString(), tokenVersion: 0 });
 
@@ -90,6 +98,8 @@ export async function toggleWishlist(productId: string) {
   if (has) {
     user.wishlist = user.wishlist.filter((id) => String(id) !== productId);
   } else {
+    const product = await Product.exists({ _id: productId, organization: session.orgId });
+    if (!product) throw new Error("That item isn't available.");
     user.wishlist.push(productId as unknown as never);
   }
   await user.save();
@@ -140,8 +150,14 @@ export async function requestBooking(
   if (end < start) return { error: "End date must be after the start date." };
   const days = daysBetween(start, end);
 
+  const org = await getCurrentOrg();
+  if (!org) return { error: "This boutique isn't available right now." };
+
   await connectToDatabase();
   const session = await getSession();
+
+  const store = await Store.findOne({ _id: parsed.data.storeId, organization: org._id }).select("slug");
+  if (!store) return { error: "That store isn't available." };
 
   const bookingItems: {
     product: string;
@@ -205,13 +221,13 @@ export async function requestBooking(
     return { error: err instanceof Error ? err.message : "Could not reserve items." };
   }
 
-  const store = await Store.findById(parsed.data.storeId).select("slug");
-  const prefix = (store?.slug ?? "bd").slice(0, 4).toUpperCase();
+  const prefix = (store.slug ?? "bd").slice(0, 4).toUpperCase();
   const count = await Booking.countDocuments({ store: parsed.data.storeId });
   const bookingNumber = `${prefix}-${String(count + 1).padStart(5, "0")}`;
 
   await Booking.create({
     bookingNumber,
+    organization: org._id,
     store: parsed.data.storeId,
     customer: {
       user: session?.sub,
@@ -246,8 +262,12 @@ export async function trackOrder(formData: FormData) {
   const parsed = TrackInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return null;
 
+  const org = await getCurrentOrg();
+  if (!org) return null;
+
   await connectToDatabase();
   const booking = await Booking.findOne({
+    organization: org._id,
     bookingNumber: parsed.data.bookingNumber.trim().toUpperCase(),
     "customer.phone": parsed.data.phone.trim(),
   }).populate("store", "name");

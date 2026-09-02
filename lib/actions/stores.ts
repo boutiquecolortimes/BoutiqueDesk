@@ -24,7 +24,7 @@ export async function createStore(
   _prev: StoreActionState,
   formData: FormData
 ): Promise<StoreActionState> {
-  await requireOwnerSession();
+  const session = await requireOwnerSession();
   const parsed = StoreInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -34,11 +34,12 @@ export async function createStore(
   const baseSlug = slugify(parsed.data.name);
   let slug = baseSlug;
   let n = 1;
-  while (await Store.exists({ slug })) {
+  while (await Store.exists({ organization: session.orgId, slug })) {
     slug = `${baseSlug}-${++n}`;
   }
 
   await Store.create({
+    organization: session.orgId!,
     name: parsed.data.name,
     slug,
     phone: parsed.data.phone,
@@ -61,14 +62,14 @@ export async function updateStore(
   _prev: StoreActionState,
   formData: FormData
 ): Promise<StoreActionState> {
-  await requireOwnerSession();
+  const session = await requireOwnerSession();
   const parsed = StoreInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
   await connectToDatabase();
-  await Store.findByIdAndUpdate(storeId, {
+  await Store.findOneAndUpdate({ _id: storeId, organization: session.orgId }, {
     $set: {
       name: parsed.data.name,
       phone: parsed.data.phone,
@@ -88,8 +89,8 @@ export async function updateStore(
 }
 
 export async function toggleStoreActive(storeId: string, isActive: boolean) {
-  await requireOwnerSession();
+  const session = await requireOwnerSession();
   await connectToDatabase();
-  await Store.findByIdAndUpdate(storeId, { $set: { isActive } });
+  await Store.findOneAndUpdate({ _id: storeId, organization: session.orgId }, { $set: { isActive } });
   revalidatePath("/admin/stores");
 }

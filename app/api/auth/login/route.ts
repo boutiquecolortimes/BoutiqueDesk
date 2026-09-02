@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { User } from "@/models/User";
 import { verifyPassword } from "@/lib/auth/password";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/tokens";
+import { getCurrentOrg } from "@/lib/tenant";
 import {
   ACCESS_TOKEN_COOKIE,
   REFRESH_TOKEN_COOKIE,
@@ -26,7 +27,13 @@ export async function POST(request: Request) {
 
   await connectToDatabase();
 
-  const user = await User.findOne({ email: parsed.data.email.toLowerCase() });
+  // No subdomain (marketing/apex site) => only platform_admin accounts (organization: null)
+  // can log in here. A tenant subdomain => only that org's users can log in.
+  const org = await getCurrentOrg();
+  const user = await User.findOne({
+    email: parsed.data.email.toLowerCase(),
+    organization: org ? org._id : null,
+  });
   if (!user || !user.isActive) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
@@ -44,6 +51,7 @@ export async function POST(request: Request) {
     email: user.email,
     name: user.name,
     storeIds,
+    orgId: user.organization ? String(user.organization) : null,
   });
   const refreshToken = await signRefreshToken({
     sub: user._id.toString(),

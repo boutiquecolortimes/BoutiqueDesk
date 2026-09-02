@@ -2,8 +2,9 @@ import { Schema, model, models, type InferSchemaType, type Model } from "mongoos
 
 const StoreSchema = new Schema(
   {
+    organization: { type: Schema.Types.ObjectId, ref: "Organization", required: true, index: true },
     name: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    slug: { type: String, required: true, lowercase: true, trim: true },
     address: {
       line1: { type: String, default: "" },
       line2: { type: String, default: "" },
@@ -18,6 +19,8 @@ const StoreSchema = new Schema(
   },
   { timestamps: true }
 );
+
+StoreSchema.index({ organization: 1, slug: 1 }, { unique: true });
 
 export type StoreDocument = InferSchemaType<typeof StoreSchema>;
 

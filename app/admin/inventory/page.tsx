@@ -41,12 +41,14 @@ export default async function InventoryPage() {
   try {
     await connectToDatabase();
     const scope = storeScopeFilter(session);
-    const storeQuery = isOwnerRole(session.role) ? {} : { _id: { $in: session.storeIds } };
+    const storeQuery = isOwnerRole(session.role)
+      ? { organization: session.orgId }
+      : { _id: { $in: session.storeIds }, organization: session.orgId };
 
     const [productDocs, storeDocs, categoryDocs] = await Promise.all([
       Product.find(scope).sort({ createdAt: -1 }).populate("store", "name").populate("category", "name"),
       Store.find(storeQuery).sort({ name: 1 }),
-      Category.find({}).sort({ name: 1 }),
+      Category.find({ organization: session.orgId }).sort({ name: 1 }),
     ]);
 
     products = productDocs;

@@ -11,6 +11,8 @@ export interface AccessTokenPayload extends JWTPayload {
   email: string;
   name: string;
   storeIds: string[];
+  // Tenant this session belongs to. null only for platform_admin.
+  orgId: string | null;
 }
 
 export interface RefreshTokenPayload extends JWTPayload {

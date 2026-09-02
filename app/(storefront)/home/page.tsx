@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Product } from "@/models/Product";
 import { Category } from "@/models/Category";
 import { getSession } from "@/lib/auth/session";
+import { getCurrentOrg } from "@/lib/tenant";
 import { User } from "@/models/User";
 import { buttonVariants } from "@/components/ui/button";
 import { ProductCard, type StorefrontProduct } from "@/components/storefront/product-card";
@@ -17,13 +18,21 @@ export default async function StorefrontHomePage() {
 
   try {
     await connectToDatabase();
+    const org = await getCurrentOrg();
 
     const [featuredDocs, categoryDocs, user] = await Promise.all([
-      Product.find({ status: "active", isPubliclyVisible: true, isFeatured: true })
-        .limit(8)
-        .populate("store", "name")
-        .sort({ createdAt: -1 }),
-      Category.find({ isActive: true }).limit(6),
+      org
+        ? Product.find({
+            organization: org._id,
+            status: "active",
+            isPubliclyVisible: true,
+            isFeatured: true,
+          })
+            .limit(8)
+            .populate("store", "name")
+            .sort({ createdAt: -1 })
+        : [],
+      org ? Category.find({ organization: org._id, isActive: true }).limit(6) : [],
       session ? User.findById(session.sub).select("wishlist") : null,
     ]);
 

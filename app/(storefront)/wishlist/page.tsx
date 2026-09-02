@@ -14,7 +14,10 @@ export default async function WishlistPage() {
   try {
     await connectToDatabase();
     const user = await User.findById(session.sub).select("wishlist");
-    const docs = await Product.find({ _id: { $in: user?.wishlist ?? [] } }).populate("store", "name");
+    const docs = await Product.find({
+      _id: { $in: user?.wishlist ?? [] },
+      organization: session.orgId,
+    }).populate("store", "name");
     products = docs.map((p) => ({
       id: String(p._id),
       name: p.name,

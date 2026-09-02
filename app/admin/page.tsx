@@ -26,7 +26,7 @@ async function loadDashboard() {
 
   const [storeCount, productCount, activeBookings, recentBookings, revenueAgg] =
     await Promise.all([
-      isOwnerRole(session.role) ? StoreModel.countDocuments({}) : null,
+      isOwnerRole(session.role) ? StoreModel.countDocuments({ organization: session.orgId }) : null,
       Product.countDocuments(scope),
       Booking.countDocuments({ ...scope, status: { $in: ["reserved", "active", "overdue"] } }),
       Booking.find(scope).sort({ createdAt: -1 }).limit(6).populate("store", "name").lean(),

@@ -1,6 +1,7 @@
 import { connectToDatabase } from "@/lib/db/connect";
 import { Product } from "@/models/Product";
 import { getSession } from "@/lib/auth/session";
+import { getCurrentOrg } from "@/lib/tenant";
 import { User } from "@/models/User";
 import { ProductCard, type StorefrontProduct } from "@/components/storefront/product-card";
 
@@ -13,10 +14,18 @@ export default async function OffersPage() {
 
   try {
     await connectToDatabase();
+    const org = await getCurrentOrg();
     const [docs, user] = await Promise.all([
-      Product.find({ status: "active", isPubliclyVisible: true, isFeatured: true })
-        .populate("store", "name")
-        .sort({ createdAt: -1 }),
+      org
+        ? Product.find({
+            organization: org._id,
+            status: "active",
+            isPubliclyVisible: true,
+            isFeatured: true,
+          })
+            .populate("store", "name")
+            .sort({ createdAt: -1 })
+        : [],
       session ? User.findById(session.sub).select("wishlist") : null,
     ]);
     products = docs.map((p) => ({

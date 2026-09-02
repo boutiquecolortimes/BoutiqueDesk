@@ -4,6 +4,7 @@ export { TRANSACTION_TYPES, PAYMENT_METHODS };
 
 const TransactionSchema = new Schema(
   {
+    organization: { type: Schema.Types.ObjectId, ref: "Organization", required: true, index: true },
     store: { type: Schema.Types.ObjectId, ref: "Store", required: true, index: true },
     booking: { type: Schema.Types.ObjectId, ref: "Booking" },
     type: { type: String, enum: TRANSACTION_TYPES, required: true },

@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Product } from "@/models/Product";
 import { User } from "@/models/User";
 import { getSession } from "@/lib/auth/session";
+import { getCurrentOrg } from "@/lib/tenant";
 import { formatCurrency } from "@/lib/utils";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { BookingRequestForm } from "@/components/storefront/booking-request-form";
@@ -12,7 +13,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
 
   await connectToDatabase();
-  const product = await Product.findOne({ _id: id, isPubliclyVisible: true }).populate("store", "name");
+  const org = await getCurrentOrg();
+  if (!org) notFound();
+  const product = await Product.findOne({
+    _id: id,
+    organization: org._id,
+    isPubliclyVisible: true,
+  }).populate("store", "name");
   if (!product) notFound();
 
   const session = await getSession().catch(() => null);

@@ -27,7 +27,7 @@ export async function inviteTeamMember(
   _prev: TeamActionState,
   formData: FormData
 ): Promise<TeamActionState> {
-  await requireOwnerSession();
+  const session = await requireOwnerSession();
   const parsed = TeamMemberInput.safeParse({
     ...Object.fromEntries(formData),
     storeIds: formData.getAll("storeIds"),
@@ -41,11 +41,12 @@ export async function inviteTeamMember(
 
   await connectToDatabase();
   const email = parsed.data.email.toLowerCase();
-  if (await User.exists({ email })) {
+  if (await User.exists({ email, organization: session.orgId })) {
     return { error: "A user with this email already exists." };
   }
 
   await User.create({
+    organization: session.orgId!,
     name: parsed.data.name,
     email,
     phone: parsed.data.phone,
@@ -63,7 +64,7 @@ export async function updateTeamMember(
   _prev: TeamActionState,
   formData: FormData
 ): Promise<TeamActionState> {
-  await requireOwnerSession();
+  const session = await requireOwnerSession();
   const parsed = TeamMemberInput.safeParse({
     ...Object.fromEntries(formData),
     storeIds: formData.getAll("storeIds"),
@@ -83,7 +84,7 @@ export async function updateTeamMember(
     update.passwordHash = await hashPassword(parsed.data.password);
   }
 
-  await User.findByIdAndUpdate(userId, { $set: update });
+  await User.findOneAndUpdate({ _id: userId, organization: session.orgId }, { $set: update });
   revalidatePath("/admin/team");
   return { success: true };
 }
@@ -95,7 +96,7 @@ export async function setTeamMemberActive(userId: string, isActive: boolean) {
   }
   await connectToDatabase();
   // Bumping tokenVersion invalidates any existing refresh tokens for this user.
-  await User.findByIdAndUpdate(userId, {
+  await User.findOneAndUpdate({ _id: userId, organization: session.orgId }, {
     $set: { isActive },
     $inc: { tokenVersion: 1 },
   });

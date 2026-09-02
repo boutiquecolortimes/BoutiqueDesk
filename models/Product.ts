@@ -13,6 +13,7 @@ const SizeStockSchema = new Schema(
 
 const ProductSchema = new Schema(
   {
+    organization: { type: Schema.Types.ObjectId, ref: "Organization", required: true, index: true },
     store: { type: Schema.Types.ObjectId, ref: "Store", required: true, index: true },
     category: { type: Schema.Types.ObjectId, ref: "Category" },
     name: { type: String, required: true, trim: true },

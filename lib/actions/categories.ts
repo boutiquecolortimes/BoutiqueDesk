@@ -15,7 +15,7 @@ export async function createCategory(
   _prev: CategoryActionState,
   formData: FormData
 ): Promise<CategoryActionState> {
-  await requireAdminSession();
+  const session = await requireAdminSession();
   const parsed = CategoryInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -25,11 +25,15 @@ export async function createCategory(
   const baseSlug = slugify(parsed.data.name);
   let slug = baseSlug;
   let n = 1;
-  while (await Category.exists({ slug })) {
+  while (await Category.exists({ organization: session.orgId, slug })) {
     slug = `${baseSlug}-${++n}`;
   }
 
-  const category = await Category.create({ name: parsed.data.name, slug });
+  const category = await Category.create({
+    organization: session.orgId!,
+    name: parsed.data.name,
+    slug,
+  });
   revalidatePath("/admin/inventory");
   return { success: true, id: String(category._id) };
 }

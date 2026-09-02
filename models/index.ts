@@ -1,3 +1,4 @@
+export { Organization, type OrganizationDocument, ORG_PLANS, ORG_PLAN_STATUSES } from "./Organization";
 export { Store, type StoreDocument } from "./Store";
 export { User, type UserDocument } from "./User";
 export { Category, type CategoryDocument } from "./Category";
